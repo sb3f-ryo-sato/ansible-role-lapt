@@ -1,0 +1,19 @@
+---
+# handlers file for setup-lapt
+- name: Restart postgresql
+  become: True
+  systemd:
+    name: postgresql
+    state: restarted
+
+- name: Restart tomcat
+  become: True
+  systemd:
+    name: tomcat
+    state: restarted
+
+- name: Restart httpd
+  become: True
+  systemd:
+    name: httpd
+    state: restarted

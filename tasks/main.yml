@@ -1,0 +1,68 @@
+---
+# tasks file for setup-lapt
+- name: Install Packages
+  become: True
+  package:
+    name: "{{ item }}"
+    update_cache: yes
+    state: latest
+  with_items:
+    - postgresql-server
+    - tomcat
+    - httpd
+  notify:
+    - Restart postgresql
+    - Restart tomcat
+    - Restart httpd
+
+- name: Check the database is created
+  become: True
+  stat:
+    path: /var/lib/pgsql/initdb.log
+  register: initdb_log
+
+- name: Initialize the database
+  become: True
+  command: postgresql-setup initdb
+  notify:
+    - Restart postgresql
+  when:
+    - initdb_log.stat.exists != True
+
+- name: Download a sample web application
+  become: True
+  get_url:
+    url: https://tomcat.apache.org/tomcat-7.0-doc/appdev/sample/sample.war
+    dest: /var/lib/tomcat/webapps
+  notify:
+    - Restart tomcat
+  when:
+    - download_sample_tomcat_war == True
+
+- name: Create a configuration file for httpd
+  become: True
+  blockinfile:
+    path: /etc/httpd/conf.d/tomcat.conf
+    create: yes
+    owner: root
+    group: root
+    mode: 0644
+    seuser: system_u
+    serole: object_r
+    setype: httpd_config_t
+    selevel: s0
+    block: |
+      ProxyPass / ajp://localhost:8009/
+  notify:
+    - Restart httpd
+
+- name: Enable and start services
+  become: True
+  systemd:
+    name: "{{ item }}"
+    enabled : yes
+    state: started
+  with_items:
+    - postgresql
+    - tomcat
+    - httpd
